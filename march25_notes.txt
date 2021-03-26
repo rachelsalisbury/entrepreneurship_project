@@ -1,1 +1,2 @@
 Moving the project into Github repository.
+- Cloning the repo to Dropbox.

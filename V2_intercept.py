@@ -20,7 +20,7 @@ matplotlib.rcParams['figure.max_open_warning'] = 0
 import matplotlib.pyplot as plt
 import seaborn as sns
 import timeit
-import itertools
+#import itertools
 
 import multiprocessing as mp
 print ("Number of processors: ", mp.cpu_count()) # 8 processors
@@ -3362,7 +3362,7 @@ def graph_trick_overlap(df_dict, tamount_space, model_list, directory, dir_list,
 
 param_list = []
 
-iterations = 100
+iterations = 5000
 alpha_0 = 105 #standard alpha = 105
 idio_alpha = -5 #standard idio_alpha = -5
 inc_idio_alpha = -5
@@ -3391,13 +3391,14 @@ trick_params = [trick_type, ta, tamount_space, tperiod_space, trick_len, trick_f
 ################################################################################
 # # # Comment this block out to run the parameter sweep # # #
 
+#Still need to incorporate the other models (sophisticated & monopoly market structure) into this to be able to use it!
+
 '''
 last_fold = 'intmod_' + str(iterations) + 'it_building_6'
 directory = os.path.join(os.getcwd(), 'MY_v' + str(version_no),
             last_fold,str([alpha_0,idio_alpha,0,ind_beta]))
 model_list = ['sr_base_duop'] #, 'both_incorrect,', 'sr_base_duop', 'so_base_duop', 'sr_monop_duop', 'so_monop_duop']
 sweep_type = 'none'
-
 
 # BASE DUOP PARAM LIST, SELF-REFLECTIVE:
 param_list.append([2, 'q','sr', 'base_duop',[alpha_0,idio_alpha,0,ind_beta],[[alpha_0,idio_alpha,0,ind_beta],

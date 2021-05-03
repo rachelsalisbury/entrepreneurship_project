@@ -804,7 +804,7 @@ def run_iteration(firmnum, unknown, compmod, market_type, truebetas, init_betas,
 def run_simulation(firmnum, unknown, compmod, market_type, truebetas, init_betas,
                    mental_models, prehistlen, dist_params, cost, periods, periods_examind,
                    max_q, mult_cap, iterations, trick_params, monop_firm, so_firm,
-                   figure_style, directory, filebegin, param_num, file_id):
+                   figure_style, directory, filebegin, param_num):
 
     '''
     INTERCEPT MODEL CHANGES:
@@ -975,6 +975,42 @@ def run_simulation(firmnum, unknown, compmod, market_type, truebetas, init_betas
             sim_data = pd.concat([price_df,Q_df,truevals_df,firmprof_df,firmb_df1,firmb_df2,firmhist_df1,firmhist_df2, exp_df], axis=1, sort = True)
         dfs.append(sim_data)
 
+        ###############################################################
+        # Price v Q Graphs for each iteration's in-simulation history #
+        ###############################################################
+
+        '''
+        plot_destination = os.path.join(directory, 'Qrunplots')
+        if not os.path.exists(plot_destination):
+            os.makedirs(plot_destination)
+
+        print(sim_data.columns)
+        #print("sim data index:")
+        #print(sim_data.index.tolist())
+        sim_data['period'] = sim_data.index
+        #print("sim data period:")
+        #print(sim_data['period'])
+        print(sim_data.total_Q)
+
+        #runplotdf = pd.concat([Q_df, ])
+        quant_fig = sns.regplot(x = sim_data.total_Q, y = sim_data.price, data = sim_data, ci = None, color = 'blue', label = 'totalQ')
+        sns.regplot(x = sim_data.Q1, y = sim_data.price, data = sim_data, ci = None, color = 'red', label = 'Q1')
+        quant_fig.legend(loc='upper center', bbox_to_anchor=(0.5, -0.2), shadow=True, ncol=2)
+        sim_data['total_Q_rounded'] = round(sim_data.total_Q, 2)
+        sim_data['price_rounded'] = round(sim_data.price, 2)
+        sim_data['Q1_rounded'] = round(sim_data.Q1, 2)
+        for pt_zip in zip(sim_data.total_Q_rounded, sim_data.price_rounded, sim_data.period, sim_data.Q1_rounded):
+            print(pt_zip)
+            quant_fig.annotate(str(pt_zip[2]), xy = (pt_zip[0], pt_zip[1]), fontsize = 7, color = 'black')
+            quant_fig.annotate(str(pt_zip[2]), xy = (pt_zip[3], pt_zip[1]), fontsize = 7, color = 'dimgrey')
+        #sns.regplot(x = sim_data.Q, y = sim_data.price, data = sim_data, ci = None, color = 'green')
+        #quant_fig.set(xlim = (0, 5), ylim = (20, 115))
+        plt.savefig(os.path.join(directory, 'Qrunplots', 'Qrunplot' + str(filebegin) + '_iteration' + str(iter) + '.png'), bbox_inches='tight')
+        plt.close()
+        plt.cla()
+        plt.clf()
+        '''
+
         '''Totaling the per-iteration capacity (Method 1)'''
         total_zero1, total_zero2, total_cap1, total_cap2 = (0,0,0,0)
         for j in range(len(Q_df)):
@@ -1113,10 +1149,13 @@ def run_simulation(firmnum, unknown, compmod, market_type, truebetas, init_betas
     av_df = pd.DataFrame.from_dict(av_data) #unnecessary step?
 
     '''Storing run information in csv - returns csv name'''
-    csv_name = str(filebegin) + '_' +  file_id + '_sim_data.csv'
-    av_df.to_csv(os.path.join(directory, csv_name), header = True)
-    total_capvals_df.to_csv(os.path.join(directory, str(filebegin) + '_' +  file_id + '_captest_results.csv'), header = True)
-    
+    av_df.to_csv(os.path.join(directory,str(filebegin) + '_prior1=' + str(init_betas[0]) + '_prior2=' + str(init_betas[1]) + '_'
+                  + 'phlen' + str(prehistlen) + 'phxvar' + str(prehistsd) + 'sim_data.csv'), header = True)
+    total_capvals_df.to_csv(os.path.join(directory,str(filebegin) + '_prior1=' + str(init_betas[0]) + '_prior2=' + str(init_betas[1]) + '_' + str(trick_params[1])
+                  +  'captest_results.csv'), header = True)
+    csv_name = (str(filebegin) + '_prior1=' + str(init_betas[0]) + '_prior2=' + str(init_betas[1]) + '_'
+                  + 'phlen' + str(prehistlen) + 'phxvar' + str(prehistsd) + 'sim_data.csv')
+
     return csv_name, initial_weights
 
 def graph_label(figure, df, graph_content, graph_colors, label_params):
@@ -1923,7 +1962,7 @@ def three_graph_overlap(index_1, index_2, index_3, csv_name_dict, iw, param_list
     plt.cla()
     plt.clf()
 
-def graph_sns_overlap(df_dict, sweep_values, model_list, directory, dir_list, initial_weights, sweep_variables):
+def graph_sns_overlap(df_dict, option_list, model_list, directory, dir_list, initial_weights, sweep_type):
     '''
     THIS IS ADAPTED FROM v1_13_8 which deals with comparing constant Q tricks to no trick versions.
     Changes for version v1_14_4:
@@ -1940,14 +1979,23 @@ def graph_sns_overlap(df_dict, sweep_values, model_list, directory, dir_list, in
 
     '''
     #Brining in dataframes and variables
-    dfs, option_list, model_list, directory, dir_list, sweep_variables = df_dict, sweep_values, model_list, directory, dir_list, sweep_variables
+    dfs, option_list, model_list, directory, dir_list, sweep_type = df_dict, option_list, model_list, directory, dir_list, sweep_type
     master_df = pd.concat(dfs, sort = True).astype(float)
-    print(df_dict)
 
-    var_type = sweep_variables
-    sweep_type = ''
-    for var in var_type:
-        sweep_type += var + '_'
+    if sweep_type == 'idio_sweep_fixed':
+        var_type = 'idio alpha'
+    elif sweep_type == 'idio_inc_sweep':
+        var_type = 'inc idio alpha'
+    elif sweep_type == 'b':
+        var_type = 'industry beta'
+    elif sweep_type == 'int_sweep_fixed':
+        var_type = 'intercept'
+    elif sweep_type == 'phlen_sweep':
+        var_type = 'pre-history length'
+    elif sweep_type == 'entrepreneur_idio_alpha':
+        var_type= 'entrant\'s idio alpha'
+    else:
+        print('invalid sweep type')
 
     #Creating list and indices for graphing
     pos_inc = 1
@@ -3264,7 +3312,7 @@ def graph_trick_overlap(df_dict, tamount_space, model_list, directory, dir_list,
 def generate_param_list(iterations, coeffs, 
                     phx_var, phq_var, x_var, phlen, max_q, mult_cap, periods, trick_params,
                     last_fold, directory, selected_models, sweep, sweep_variables, sweep_values, 
-                    param_list = [], model_list = []):
+                    param_list = []):
 
     if sweep == True:
         for value in sweep_values:
@@ -3274,202 +3322,93 @@ def generate_param_list(iterations, coeffs,
             true_alpha_0, true_idio_alpha, true_ind_beta = coeffs['true_alpha_0'], coeffs['true_idio_alpha'], coeffs['true_ind_beta']
             ent_alpha_0, ent_idio_alpha, ent_ind_beta = coeffs['ent_alpha_0'], coeffs['ent_idio_alpha'], coeffs['ent_ind_beta']
             inc_alpha_0, inc_idio_alpha, inc_ind_beta = coeffs['inc_alpha_0'], coeffs['inc_idio_alpha'], coeffs['inc_ind_beta']
-            
-            if selected_models['both_correct'] == True:
-                # 0. BOTH CORRECT LIST:
-                # Both the entrant & the incumbent have the same correct coefficients for demand and the correct structure.
-                param_list.append([2, 'q','sr', 'base_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                                   [[true_alpha_0,true_idio_alpha,0,true_ind_beta],[true_alpha_0,true_idio_alpha,0,true_ind_beta]],
-                              [[1,1,0,1],[1,1,0,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                               50,periods, periods,max_q,mult_cap,iterations,
-                               trick_params, 0, 0, #trick_params, monop_firm, so_firm
-                               'six_per_page', os.path.join(directory, 'cm=both_correct') ,'base_sr_',1])
-                model_list.append('both_correct')
-            
-            if selected_models['both_incorrect'] == True:
-                # 1. BOTH INCORRECT LIST:
-                # Both the entrant & the incumbent have the same incorrect coefficients for demand AND THE INCORRECT STRUCTURE.
-                param_list.append([2, 'q','sr', 'base_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                                   [[inc_alpha_0,0,inc_idio_alpha,inc_ind_beta], [inc_alpha_0,0,inc_idio_alpha,inc_ind_beta]],
-                              [[1,0,1,1],[1,0,1,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                               50,periods, periods,max_q,mult_cap,iterations,
-                               trick_params, 0, 0, #trick_params, monop_firm, so_firm
-                               'six_per_page', os.path.join(directory, 'cm=both_incorrect') ,'base_sr_',1])
-                model_list.append('both_incorrect')
-            
-            if selected_models['sr_base_duop'] == True:
-                #BASE DUOP PARAM LIST, SELF-REFLECTIVE:
-                param_list.append([2, 'q','sr', 'base_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                                   [[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],[inc_alpha_0,0,inc_idio_alpha,inc_ind_beta]],
-                          [[1,1,0,1],[1,0,1,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                           50,periods, periods,max_q,mult_cap,iterations,
-                           trick_params, 0, 0, #trick_params, monop_firm, so_firm
-                           'six_per_page', os.path.join(directory, 'cm=sr_base_duop') ,'base_sr_',1])
-                model_list.append('sr_base_duop')
-            
-            if selected_models['so_base_duop'] == True:
-                #BASE DUOP PARAM LIST, SOPHISTICATED:
-                #FIRM 1 IS SOPHISTICATED.
-                param_list.append([2, 'q','so', 'base_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                                   [[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],[inc_alpha_0,0,inc_idio_alpha,inc_ind_beta]],
-                                  [[1,1,0,1],[1,0,1,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                                  50,periods, periods,max_q,mult_cap,iterations,
-                                  trick_params, 1, 0, #trick_params, monop_firm, so_firm
-                                  'six_per_page', os.path.join(directory, 'cm=so_base_duop'),'base_so',2])
-                model_list.append('so_base_duop')
-            
-            if selected_models['sr_monop_duop'] == True:
-                #MONOP_DUO PARAM LIST, SELF-REFLECTIVE:
-                param_list.append([2, 'q','sr', 'monop_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                                   [[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],[inc_alpha_0,inc_idio_alpha,0,inc_ind_beta]],
-                                  [[1,1,0,1],[1,1,0,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                                   50,periods, periods,max_q,mult_cap,iterations,
-                                   trick_params, 1, 0, #trick_params, so_firm
-                                   'six_per_page', os.path.join(directory, 'cm=sr_monop_duop'),'monop_sr_',3])
-                model_list.append('sr_monop_duop')
-                
-            if selected_models['so_monop_duop'] == True:
-                #MONOP_DUOP PARAM LIST, SOPHISTICATED:
-                #FIRM 1, THE DUOPOLIST, IS SOPHISTICATED.
-                param_list.append([2, 'q','so', 'monop_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                                   [[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],[inc_alpha_0,inc_idio_alpha,0,inc_ind_beta]],
-                                   [[1,1,0,1],[1,1,0,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                                   50,periods, periods,max_q,mult_cap,iterations,
-                                   trick_params, 1, 0,#for 'so': trick_params, monop_firm, so_firm
-                                   'six_per_page', os.path.join(directory, 'cm=so_monop_duop'),'monop_so_',4])
-                model_list.append('so_monop_duop')
+            '''
+            if sweep_type == 'idio_sweep_fixed':
+                idio_alpha = option
+                inc_idio_alpha = option
+                inc_alpha_0 = alpha_0
+                inc_ind_beta = ind_beta
+                ent_alpha_0, ent_idio_alpha, ent_ind_beta = alpha_0, idio_alpha, ind_beta  #the duopolist is correct
+                #ind_beta already set above
+            '''
+            '''
+            CURRENTLY WORKING HERE - IS THERE A WAY TO GENERALIZE THE VALUE ASSIGNMENT FOR SWEEPS WITHOUT 
+            WRITING A NEW IF STATEMENT FOR EVERY SWEEP TYPE?
+            '''
     
-    
-    
-    else:
-        true_alpha_0, true_idio_alpha, true_ind_beta = coeffs['true_alpha_0'], coeffs['true_idio_alpha'], coeffs['true_ind_beta']
-        ent_alpha_0, ent_idio_alpha, ent_ind_beta = coeffs['ent_alpha_0'], coeffs['ent_idio_alpha'], coeffs['ent_ind_beta']
-        inc_alpha_0, inc_idio_alpha, inc_ind_beta = coeffs['inc_alpha_0'], coeffs['inc_idio_alpha'], coeffs['inc_ind_beta']
-        
-        if selected_models['both_correct'] == True:
-            # 0. BOTH CORRECT LIST:
-            # Both the entrant & the incumbent have the same correct coefficients for demand and the correct structure.
-            param_list.append([2, 'q','sr', 'base_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                               [[true_alpha_0,true_idio_alpha,0,true_ind_beta],[true_alpha_0,true_idio_alpha,0,true_ind_beta]],
-                          [[1,1,0,1],[1,1,0,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                           50,periods, periods,max_q,mult_cap,iterations,
-                           trick_params, 0, 0, #trick_params, monop_firm, so_firm
-                           'six_per_page', os.path.join(directory, 'cm=both_correct') ,'base_sr_',1])
-            model_list.append('both_correct')
-        
-        if selected_models['both_incorrect'] == True:
-            # 1. BOTH INCORRECT LIST:
-            # Both the entrant & the incumbent have the same incorrect coefficients for demand AND THE INCORRECT STRUCTURE.
-            param_list.append([2, 'q','sr', 'base_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                               [[inc_alpha_0,0,inc_idio_alpha,inc_ind_beta], [inc_alpha_0,0,inc_idio_alpha,inc_ind_beta]],
-                          [[1,0,1,1],[1,0,1,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                           50,periods, periods,max_q,mult_cap,iterations,
-                           trick_params, 0, 0, #trick_params, monop_firm, so_firm
-                           'six_per_page', os.path.join(directory, 'cm=both_incorrect') ,'base_sr_',1])
-            model_list.append('both_incorrect')
-        
-        if selected_models['sr_base_duop'] == True:
-            #BASE DUOP PARAM LIST, SELF-REFLECTIVE:
-            param_list.append([2, 'q','sr', 'base_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                               [[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],[inc_alpha_0,0,inc_idio_alpha,inc_ind_beta]],
-                      [[1,1,0,1],[1,0,1,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                       50,periods, periods,max_q,mult_cap,iterations,
+    if selected_models['both_correct'] == True:
+        #0. BOTH CORRECT LIST:
+        param_list.append([2, 'q','sr', 'base_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
+                           [[true_alpha_0,true_idio_alpha,0,true_ind_beta],[true_alpha_0,true_idio_alpha,0,true_ind_beta]],
+                      [[1,1,0,1],[1,1,0,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
+                       50,periods,periods,max_q,mult_cap,iterations,
                        trick_params, 0, 0, #trick_params, monop_firm, so_firm
-                       'six_per_page', os.path.join(directory, 'cm=sr_base_duop') ,'base_sr_',1])
-            model_list.append('sr_base_duop')
-        
-        if selected_models['so_base_duop'] == True:
-            #BASE DUOP PARAM LIST, SOPHISTICATED:
-            #FIRM 1 IS SOPHISTICATED.
-            param_list.append([2, 'q','so', 'base_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                               [[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],[inc_alpha_0,0,inc_idio_alpha,inc_ind_beta]],
-                              [[1,1,0,1],[1,0,1,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                              50,periods, periods,max_q,mult_cap,iterations,
-                              trick_params, 1, 0, #trick_params, monop_firm, so_firm
-                              'six_per_page', os.path.join(directory, 'cm=so_base_duop'),'base_so',2])
-            model_list.append('so_base_duop')
-        
-        if selected_models['sr_monop_duop'] == True:
-            #MONOP_DUO PARAM LIST, SELF-REFLECTIVE:
-            param_list.append([2, 'q','sr', 'monop_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                               [[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],[inc_alpha_0,inc_idio_alpha,0,inc_ind_beta]],
-                              [[1,1,0,1],[1,1,0,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                               50,periods, periods,max_q,mult_cap,iterations,
-                               trick_params, 1, 0, #trick_params, so_firm
-                               'six_per_page', os.path.join(directory, 'cm=sr_monop_duop'),'monop_sr_',3])
-            model_list.append('sr_monop_duop')
-        
-        if selected_models['so_monop_duop'] == True:
-            #MONOP_DUOP PARAM LIST, SOPHISTICATED:
-            #FIRM 1, THE DUOPOLIST, IS SOPHISTICATED.
-            param_list.append([2, 'q','so', 'monop_duop',[true_alpha_0,true_idio_alpha,0,true_ind_beta],
-                               [[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],[inc_alpha_0,inc_idio_alpha,0,inc_ind_beta]],
-                               [[1,1,0,1],[1,1,0,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
-                               50,periods, periods,max_q,mult_cap,iterations,
-                               trick_params, 1, 0,#for 'so': trick_params, monop_firm, so_firm
-                               'six_per_page', os.path.join(directory, 'cm=so_monop_duop'),'monop_so_',4])
-            model_list.append('so_monop_duop')
-            
-    return param_list, model_list
-
-
-def run_through_parameters(param_list, model_list, selected_models, directory, version_no, last_fold,
-                           sweep, sweep_variables, sweep_values, just_graphing):
+                       'six_per_page', os.path.join(directory, 'cm=both_correct') ,'base_sr_',1])
     
-    csv_name = {}
-    dir_list = {}
-    initial_weights = {}
+    '''
+    if selected_models['both_incorrect'] == True:
+        #1. BOTH INCORRECT LIST:
+        param_list.append([2, 'q','sr', 'base_duop',[alpha_0,idio_alpha,0,ind_beta],[[alpha_0,0,inc_idio_alpha,inc_ind_beta],
+                                                                       [alpha_0,0,inc_idio_alpha,inc_ind_beta]],
+                      [[1,0,1,1],[1,0,1,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
+                       50,periods,periods,max_q,mult_cap,iterations,
+                       trick_params, 0, 0, #trick_params, monop_firm, so_firm
+                       'six_per_page', os.path.join(sweep_directory, 'cm=both_incorrect') ,'base_sr_',1])
     
-    param_index_num = 0
-    for param in param_list:
-        
-        #Create a file to record results of the run.
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        output_file = open(os.path.join(directory, 'output_file.txt'), 'w+')
-        '''WORKING IN HERE '''
     
-        ### choose an index parameter to identify each parameterization. ###
-        # When there is no sweep, identify by the model:
-            
-        parameters_dict = {'true_alpha_0': param[4][0], 'true_idio_alpha': param[4][1], 'true_ind_beta': param[4][3],
-                           'ent_alpha_0': param[5][0][0], 'ent_idio_alpha': param[5][0][1], 'ent_ind_beta': param[5][0][3],
-                           'inc_alpha_0': param[5][1][0], 'inc_idio_alpha': param[5][1][1], 'inc_ind_beta': param[5][1][3],
-                           'phlen': param[7], 'phx_var': param[8][1], 'x_var': param[8][3], 'phq_var': param[8][5],
-                           'periods': param[10], 'max_q': param[11], 'mult_cap': param[12], 'iterations': param[13]}    
-        
-        model_index = model_list[param_index_num]
-        if sweep == False:
-            var_index = parameters_dict['true_idio_alpha']
-            file_id = model_index + '_nosweep_' + str(var_index)
-        else: #indexing the csv's when there is a sweep.
-            var_index = parameters_dict[sweep_variables[0]]
-            file_id = model_index + '_' + sweep_variables[0] + '_' + str(var_index)
-        
-        
-        csv_name[var_index, model_index], initial_weights[var_index, model_index] = run_simulation(*param, file_id)
-        graph_sns(csv_name[var_index, model_index], initial_weights[var_index, model_index], *param)
-        
-        dir_list[model_index] = [os.path.join(os.getcwd(), 'MY_v' + str(version_no),
-                last_fold, str([true_alpha_0,true_idio_alpha,0,true_ind_beta]), 'cm='+ model_index), [*param]]
-        
-        output_file.write('This param is finished running.')
-        output_file.write('-' * 20)
-        param_index_num += 1
-        
-    output_file.close()
-    return csv_name, dir_list, initial_weights
+    if selected_models['sr_base_duop'] == True:
+        #BASE DUOP PARAM LIST, SELF-REFLECTIVE:
+        param_list.append([2, 'q','sr', 'base_duop',[alpha_0,idio_alpha,0,ind_beta],[[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],
+                                                                   [inc_alpha_0,0,inc_idio_alpha,inc_ind_beta]],
+                  [[1,1,0,1],[1,0,1,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
+                   50,periods,periods,max_q,mult_cap,iterations,
+                   trick_params, 0, 0, #trick_params, monop_firm, so_firm
+                   'six_per_page', os.path.join(sweep_directory, 'cm=sr_base_duop') ,'base_sr_',1])
+    
+    
+    if selected_models['so_base_duop'] == True:
+        #BASE DUOP PARAM LIST, SOPHISTICATED:
+        #FIRM 1 IS SOPHISTICATED.
+        param_list.append([2, 'q','so', 'base_duop',[alpha_0,idio_alpha,0,ind_beta],[[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],
+                                                                             [inc_alpha_0,0,inc_idio_alpha,inc_ind_beta]],
+                          [[1,1,0,1],[1,0,1,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
+                          50,periods,periods,max_q,mult_cap,iterations,
+                          trick_params, 1, 0, #trick_params, monop_firm, so_firm
+                          'six_per_page', os.path.join(sweep_directory, 'cm=so_base_duop'),'base_so',2])
+    
+    
+    if selected_models['sr_monop_duop'] == True:
+        #MONOP_DUO PARAM LIST, SELF-REFLECTIVE:
+        param_list.append([2, 'q','sr', 'monop_duop',[alpha_0,idio_alpha,0,ind_beta],[[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],
+                                                                                 [alpha_0,inc_idio_alpha,0,inc_ind_beta]],
+                          [[1,1,0,1],[1,1,0,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
+                           50,periods,periods,max_q,mult_cap,iterations,
+                           trick_params, 1, 0, #trick_params, so_firm
+                           'six_per_page', os.path.join(sweep_directory, 'cm=sr_monop_duop'),'monop_sr_',3])
+    
+    if selected_models['so_monop_duop'] == True:
+        #MONOP_DUOP PARAM LIST, SOPHISTICATED:
+        #FIRM 1, THE DUOPOLIST, IS SOPHISTICATED.
+        param_list.append([2, 'q','so', 'monop_duop',[alpha_0,idio_alpha,0,ind_beta],[[ent_alpha_0,ent_idio_alpha,0,ent_ind_beta],
+                                                                                 [alpha_0,inc_idio_alpha,0,inc_ind_beta]],
+                           [[1,1,0,1],[1,1,0,1]],phlen,[1,phx_var,1,x_var,2,phq_var],
+                           50,periods,periods,max_q,mult_cap,iterations,
+                           trick_params, 1, 0,#for 'so': trick_params, monop_firm, so_firm
+                           'six_per_page', os.path.join(sweep_directory, 'cm=so_monop_duop'),'monop_so_',4])
+    '''
+    return param_list
 
 ################################################################################
 ###                          End of functions                                ###
 ################################################################################
 
 
+
 ############################## INTERCEPT MODEL #################################
 
 # %% Entering parameters.
 
-iterations = 20
+iterations = 5000
 
 ### ENTER DEMAND FCN COEFFICIENTS ###
 
@@ -3528,51 +3467,29 @@ selected_models = {'both_correct': True, 'both_incorrect': False,
 #####
 
 
-sweep = True #possible values: True or False
-sweep_variables = ['true_idio_alpha', 'ent_idio_alpha'] #note: if multiple variables are listed, they will be swept over together.
-sweep_values = (-15, -10, -5)
 
-just_graphing = False
+sweep = False #possible values: True or False
+sweep_variables = ['true_idio_alpha'] #possible sweep types:
+sweep_values = (-15, -10, -5)
 
 # %% Creating the parameter list
 
-param_list, model_list = generate_param_list(iterations, coeffs, 
+param_list = generate_param_list(iterations, coeffs, 
                     phx_var, phq_var, x_var, phlen, max_q, mult_cap, periods, trick_params,
                     last_fold, directory, selected_models, sweep, sweep_variables, sweep_values)
 
-# %% Running the simulation on the parameter list to create csv's (no graphing).
+print(param_list)
 
 
-csv_name, dir_list, initial_weights = run_through_parameters(param_list, model_list, selected_models, directory, version_no, last_fold,
-                   sweep, sweep_variables, sweep_values, just_graphing)
+'''
 
+# %% Running the simulation
 
-df_dict = {}
-
-if sweep == True:
-    param_num = 0
-    for param in param_list:
-        parameters_dict = {'true_alpha_0': param[4][0], 'true_idio_alpha': param[4][1], 'true_ind_beta': param[4][3],
-                           'ent_alpha_0': param[5][0][0], 'ent_idio_alpha': param[5][0][1], 'ent_ind_beta': param[5][0][3],
-                           'inc_alpha_0': param[5][1][0], 'inc_idio_alpha': param[5][1][1], 'inc_ind_beta': param[5][1][3],
-                           'phlen': param[7], 'phx_var': param[8][1], 'x_var': param[8][3], 'phq_var': param[8][5],
-                           'periods': param[10], 'max_q': param[11], 'mult_cap': param[12], 'iterations': param[13]}   
-        model_index = model_list[param_num]
-        var_index = parameters_dict[sweep_variables[0]]
-        
-        name = csv_name[var_index, model_index]
-        df_dict[var_index, model_index] = pd.read_csv(os.path.join(dir_list[model_index][0], name))
-        param_num+=1
-        
-    ### WIP: this graph_sns_overlap fcn has not been adapted to the new dictionary system for determining the model or the nature of the sweep.###
-    graph_sns_overlap(df_dict, sweep_values, model_list, directory, dir_list, initial_weights, sweep_variables)
-
-    del(df_dict)
+if len(param_list) == 1:
+    ### Run the single parameterization.
     
-    plt.close()
-    plt.cla()
-    plt.clf()
+else:
+    for param in param_list:
+        ### Runs multiple parameters.
 
-    print("Done graphing sweep over the incorrect firm's idiosync beta")    
-
-
+'''

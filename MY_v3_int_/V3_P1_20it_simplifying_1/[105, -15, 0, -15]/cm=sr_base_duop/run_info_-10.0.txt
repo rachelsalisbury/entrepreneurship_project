@@ -1,0 +1,50 @@
+Capacity Info.
+ Firm 1's capacity info: 
+  % of periods hitting capacity, unrounded: 0.0%
+  % hitting cap bc perceives positive demand, unrounded: 0.0%
+  % hitting cap bc chooses q>max_q, unrounded: 0.0%
+ % hitting cap (not rounded)0.0
+  number of times choosing Q < 0: 0
+ Firm 2's capacity info: 
+  % of periods hitting capacity, total: 0.0%
+  % hitting cap bc perceives positive demand: 0.0%
+  % hitting cap bc chooses q>max_q: 0.0%
+  number of times choosing Q < 0: 0
+ Count of instances of high profits over all iterations & periods:
+ # profits >= 25: 0
+ # profits >= 100: 0
+ # profits >= 1000: 0
+ Count of instances of outlier x-shocks over all iterations & periods:
+ x is negative: 0
+ # x1 > 2: 0
+ # x1 > 3: 0
+ # x1 > 4:0
+ # x2 > 2: 0
+ # x2 > 3: 0
+ # x2 > 4:0
+ # x3 > 2: 0
+ # x3 > 3: 0
+ # x3 > 4:0
+ Count of instances where demand is upward sloping:
+ Perceived: 0
+ Actual: 0
+ Price greater than 1000: 0
+ Price greater than 150: 0
+ Price greater than 100: 0
+ Price greater than 85: 0
+ Price greater than 70: 0
+Parameter Info.
+ iterations: 20
+ initial betas: [[105, -10, 0, -15], [105, 0, -5, -15]]
+ mental models: [[1, 1, 0, 1], [1, 0, 1, 1]]
+ phx_var: 0.5
+ phq_var: 0.5
+ x_var:0.3
+ max_q: 50
+ periods: 100
+ competitor model: sr
+ market type: base_duop
+ trick parameters (trick_type, ta, tamount_space, tperiod_space, trick_len, trick_freq): ['none', 0, 0, [], 0, 0]
+ monopoly firm: 0
+ sophisticated firm: 0
+ cap multiplier: 1
